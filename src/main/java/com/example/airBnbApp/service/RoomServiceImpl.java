@@ -6,6 +6,7 @@ import com.example.airBnbApp.entity.Room;
 import com.example.airBnbApp.exception.ResourceNotFoundException;
 import com.example.airBnbApp.repository.HotelRepository;
 import com.example.airBnbApp.repository.RoomRepository;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ public class RoomServiceImpl implements RoomService{
     private final RoomRepository roomRepository;
     private final ModelMapper modelMapper;
     private final HotelRepository hotelRepository;
+    private final InventoryService inventoryService;
 
     @Override
     public RoomDto createNewRoom(Long hotelId, RoomDto roomDto) {
@@ -35,6 +37,11 @@ public class RoomServiceImpl implements RoomService{
         room=roomRepository.save(room);
 
         //TODO: Create inventory ASA room is created
+
+        if(hotel.getActive()){
+            inventoryService.intializeRoomForYear(room);
+        }
+
         return modelMapper.map(room,RoomDto.class);
     }
 
@@ -51,18 +58,22 @@ public class RoomServiceImpl implements RoomService{
 
     @Override
     public RoomDto getRoomById(Long roomId) {
-        Room room=roomRepository.findById(roomId).orElseThrow(()->new ResourceNotFoundException("Room not found with id:"+roomId));
+        Room room=roomRepository.findById(roomId)
+                .orElseThrow(()->
+                        new ResourceNotFoundException("Room not found with id:"+roomId));
         return modelMapper.map(room,RoomDto.class);
     }
-
+    @Transactional
     @Override
     public void deleteRoomById(Long roomId) {
-        boolean exists=roomRepository.existsById(roomId);
-        if(!exists){
-            throw new ResourceNotFoundException("Room not found with id"+roomId);
-        }
+        Room room=roomRepository.findById(roomId)
+                .orElseThrow(()->
+                        new ResourceNotFoundException("Room not found with id:"+roomId));
+
+        inventoryService.deleteFutureInverntories(room);
         roomRepository.deleteById(roomId);
-        //TODO: Delete all future inventories for this room
     }
+
+
 
 }

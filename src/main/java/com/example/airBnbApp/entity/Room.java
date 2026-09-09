@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -47,5 +48,12 @@ public class Room {
 
     @Column(nullable = false)
     private Integer capacity;
+
+    @OneToMany(
+            mappedBy = "room",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<Inventory> inventories = new ArrayList<>();
 
 }

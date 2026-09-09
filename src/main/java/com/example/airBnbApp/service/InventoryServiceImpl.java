@@ -1,21 +1,34 @@
 package com.example.airBnbApp.service;
 
+import com.example.airBnbApp.Strategy.PricingStrategy;
+import com.example.airBnbApp.dto.HotelDto;
+import com.example.airBnbApp.dto.HotelPriceDto;
+import com.example.airBnbApp.dto.HotelSearchRequest;
+import com.example.airBnbApp.entity.Hotel;
 import com.example.airBnbApp.entity.Inventory;
 import com.example.airBnbApp.entity.Room;
+import com.example.airBnbApp.repository.HotelMinPriceRepository;
 import com.example.airBnbApp.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class InventoryServiceImpl implements InventoryService {
+    private final ModelMapper modelMapper;
 
     private final InventoryRepository inventoryRepository;
+    private final HotelMinPriceRepository hotelMinPriceRepository;
 
     @Override
     public void intializeRoomForYear(Room room) {
@@ -27,6 +40,7 @@ public class InventoryServiceImpl implements InventoryService {
                     .hotel(room.getHotel())
                     .room(room)
                     .bookedCount(0)
+                    .reservedCount(0)
                     .city(room.getHotel().getCity())
                     .date(today)
                     .price(room.getBasePrice())
@@ -40,7 +54,26 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public void deleteFutureInverntories(Room room) {
+        log.info("Deleting the inventories of room with id: {}",room.getId());
         LocalDate today = LocalDate.now();
-        inventoryRepository.deleteByDateAfterAndRoom(today, room);
+        inventoryRepository.deleteByDateAfterAndRoom(today,room);
     }
+
+    @Override
+    public Page<HotelPriceDto> searchHotels(HotelSearchRequest hotelSearchRequest) {
+        log.info("Searching hotels for {} city,from {} to {}",hotelSearchRequest.getCity(),hotelSearchRequest.getStartDate(),hotelSearchRequest.getEndDate());
+        Pageable pageable= PageRequest.of(hotelSearchRequest.getPage(), hotelSearchRequest.getSize());
+
+        long dateCount= ChronoUnit.DAYS.between(hotelSearchRequest.getStartDate(),hotelSearchRequest.getEndDate())+1;
+
+
+        //Business Logic 90 days
+        Page<HotelPriceDto>hotelPage=hotelMinPriceRepository.findHotelsWithAvailableInventory(hotelSearchRequest.getCity(),
+                hotelSearchRequest.getStartDate(),
+                hotelSearchRequest.getEndDate(),
+                hotelSearchRequest.getRoomCount(),
+                dateCount,pageable);
+        return hotelPage;
+    }
+
 }
