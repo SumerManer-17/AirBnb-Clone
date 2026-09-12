@@ -32,6 +32,8 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public void intializeRoomForYear(Room room) {
+
+        log.info("Initializing inventory for room ID: {}", room.getId());
         LocalDate today = LocalDate.now();
         LocalDate end = today.plusYears(1);
 

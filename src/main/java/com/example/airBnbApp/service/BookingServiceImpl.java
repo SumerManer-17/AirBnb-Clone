@@ -6,11 +6,13 @@ import com.example.airBnbApp.dto.GuestDto;
 import com.example.airBnbApp.entity.*;
 import com.example.airBnbApp.entity.enums.BookingStatus;
 import com.example.airBnbApp.exception.ResourceNotFoundException;
+import com.example.airBnbApp.exception.UnAuthorizedException;
 import com.example.airBnbApp.repository.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -91,6 +93,11 @@ public class BookingServiceImpl implements BookingService{
 
         Booking booking=bookingRepository.findById(bookingId).orElseThrow(()->
                 new ResourceNotFoundException("Booking not found with id: "+bookingId));
+        User user=getCurrentUser();
+
+        if (user.equals(booking.getUser())){
+            throw new UnAuthorizedException("Booking does not belongs to this user id "+user.getId());
+        }
 
         if (hasBookinExpired(booking)){
             throw new IllegalStateException("Booking is expired");
@@ -103,7 +110,7 @@ public class BookingServiceImpl implements BookingService{
 
         for (GuestDto guestDto:guestDtoList){
             Guest guest=modeMapper.map(guestDto,Guest.class);
-            guest.setUser(getCurrentUser());
+            guest.setUser(user);
             guest=guestRepository.save(guest);
             booking.getGuests().add(guest);
         }
@@ -115,9 +122,8 @@ public class BookingServiceImpl implements BookingService{
     }
 
     public User getCurrentUser(){
-        User user=new User();
-        user.setId(1L);
-        return user;
+
+        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
 
